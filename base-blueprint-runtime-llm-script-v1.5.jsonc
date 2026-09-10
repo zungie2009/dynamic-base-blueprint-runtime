@@ -1,0 +1,625 @@
+{
+  "format": "LLM_BASE_BLUEPRINT_CONSTRUCTION_CONTRACT_V1_5",
+  "experiment": {
+    "name": "Schema-Derived Runtime Application",
+    "purpose": "Build one domain-neutral runtime that reconstructs a business application from a separately supplied database-schema configuration.",
+    "controlledVariable": "The Base Blueprint implementation remains unchanged while external business configurations may change.",
+    "successClaim": "The same compiled application can load a compatible external configuration, provision its database schema, and render its CRUD application without recompilation."
+  },
+  "inputContract": {
+    "requiredExternalFile": "business-schema-config.jsonc",
+    "requiredExternalRuleFile": "business-rules.jsonc",
+    "requiredExternalUiFile": "business-ui.jsonc",
+    "loadTime": "APPLICATION_STARTUP",
+    "schemaReloadPolicy": "RESTART_REQUIRED_FOR_V1_1",
+    "ruleReloadPolicy": "ADMIN_TRIGGERED_AT_RUNTIME_WITHOUT_PROCESS_RESTART",
+    "uiReloadPolicy": "RESTART_REQUIRED_FOR_V1_5",
+    "configurationRemainsExternal": true,
+    "configurationIsNotCompiledIntoJava": true,
+    "configurationAuthority": "The schema configuration owns business tables, fields, labels, and relationships; the rule file owns calculations; the UI configuration owns presentation and interaction behavior. No layer may redefine another layer's authority.",
+    "failurePolicy": "If the configuration is missing or invalid, do not provision a partial schema and do not start the business UI. Display a useful validation report."
+  },
+  "runtimeInvocation": {
+    "configurationArgument": "--config <path>",
+    "configurationDefault": "./business-schema-config.jsonc",
+    "rulesArgument": "--rules <path>",
+    "rulesDefault": "./business-rules.jsonc",
+    "uiArgument": "--ui <path>",
+    "uiDefault": "./business-ui.jsonc",
+    "bindArgument": "--bind <address>",
+    "bindDefault": "127.0.0.1",
+    "portArgument": "--port <number>",
+    "portDefault": 8080,
+    "portConflictPolicy": "Fail with a clear message; do not silently select another port.",
+    "singleBusinessScope": "INTENTIONAL_FOR_THIS_EXPERIMENT",
+    "exampleCommand": "java -jar target/base-blueprint-runtime-1.5.0.jar --config ./business-schema-config.jsonc --rules ./business-rules.jsonc --ui ./business-ui.jsonc --bind 127.0.0.1 --port 8080"
+  },
+  "target": {
+    "language": "JAVA",
+    "javaVersion": 21,
+    "applicationType": "LOCAL_WEB_APPLICATION",
+    "frontend": "SERVER_RENDERED_HTML_CSS_WITH_MINIMAL_VANILLA_JAVASCRIPT",
+    "frameworkPolicy": "Do not use Spring, Angular, React, Node.js, or an application server.",
+    "httpRuntime": "JDK_COM_SUN_NET_HTTP_SERVER",
+    "persistence": {
+      "api": "JDBC",
+      "referenceDatabase": "H2_EMBEDDED_FILE_DATABASE",
+      "referenceDependency": "com.h2database:h2:2.3.232",
+      "databaseFile": "data/business-runtime",
+      "operatingMode": "LOCAL_OFFLINE_AFTER_DEPENDENCIES_ARE_PACKAGED"
+    },
+    "delivery": [
+      "complete readable source",
+      "Javadoc on public types and important algorithms",
+      "Maven project",
+      "runnable JAR with required dependency packaged or copied beside it",
+      "external sample business-schema-config.jsonc",
+      "external sample business-rules.jsonc",
+      "external sample business-ui.jsonc",
+      "README with exact build and run commands",
+      "reproducible unit and HTTP integration tests"
+    ],
+    "maven": {
+      "groupId": "org.blueprintruntime",
+      "artifactId": "base-blueprint-runtime",
+      "version": "1.5.0",
+      "jarName": "base-blueprint-runtime-1.5.0.jar",
+      "buildCommand": "mvn clean verify",
+      "runCommand": "java -jar target/base-blueprint-runtime-1.5.0.jar --config ./business-schema-config.jsonc --rules ./business-rules.jsonc --ui ./business-ui.jsonc"
+    }
+  },
+  "baseBlueprint": {
+    "typeId": "BaseBusinessApplicationBlueprint",
+    "kind": "DOMAIN_NEUTRAL_STABLE_RUNTIME",
+    "responsibility": "Interpret a configured logical business schema and project it consistently into database, CRUD, validation, routing, navigation, and HTML UI behavior.",
+    "mustNotKnow": [
+      "specific business names",
+      "specific table names",
+      "specific field names",
+      "domain-specific calculations",
+      "domain-specific workflows"
+    ],
+    "genericRuntimeObjects": [
+      "BusinessConfiguration",
+      "TableDefinition",
+      "FieldDefinition",
+      "ReferenceDefinition",
+      "ResolvedBusinessBlueprint",
+      "SchemaPlan",
+      "BusinessContext",
+      "GenericRecord"
+    ],
+    "genericServices": [
+      "ConfigurationLoader",
+      "ConfigurationValidator",
+      "UiConfigurationLoader",
+      "UiConfigurationValidator",
+      "UiProjectionResolver",
+      "BlueprintResolver",
+      "SchemaPlanner",
+      "SchemaProvisioner",
+      "SchemaRegistry",
+      "GenericCrudService",
+      "RecordValidator",
+      "RelationshipResolver",
+      "HtmlRenderer",
+      "RouteDispatcher",
+      "AuditService"
+    ]
+  },
+  "derivationRules": {
+    "business": {
+      "configurationId": "Identifies the loaded configuration.",
+      "businessId": "Creates a stable database namespace and route context.",
+      "businessName": "Produces the application title.",
+      "schemaVersion": "Participates in schema compatibility checks.",
+      "locale": "Controls labels and value formatting when declared."
+    },
+    "table": {
+      "databaseProjection": "Each configured table produces exactly one relational database table.",
+      "uiProjection": "Each configured table produces one left-navigation menu entry and list, create, view, edit, and delete surfaces.",
+      "routingProjection": "Each table is addressed through generic routes parameterized by stable tableId.",
+      "displayProjection": "displayField supplies the human-readable record label."
+    },
+    "field": {
+      "databaseProjection": "Every configured field produces exactly one persistent database column in V1.1.",
+      "uiProjection": "Each editable field produces a form control derived from its logical type.",
+      "validationProjection": "Required, length, precision, uniqueness, and reference constraints are enforced consistently at server and database layers.",
+      "identityConvention": "IDENTITY fields are generated by the server, are read-only in forms, and form the primary key."
+    },
+    "relationship": {
+      "source": "A REFERENCE field on a child table.",
+      "target": "A declared primary or unique key on another configured table.",
+      "databaseProjection": "Generate a foreign-key constraint.",
+      "uiProjection": "Generate a select control populated from the referenced table, using its displayField.",
+      "defaultDeletePolicy": "RESTRICT",
+      "scope": "CURRENT_BUSINESS_SCHEMA_ONLY"
+    }
+  },
+  "fieldTypeControlMap": {
+    "IDENTITY": { "sql": "VARCHAR(36)", "control": "READ_ONLY_TEXT", "generated": true },
+    "STRING": { "sql": "VARCHAR(length or 255)", "control": "TEXT_INPUT" },
+    "TEXT": { "sql": "CLOB", "control": "TEXTAREA" },
+    "EMAIL": { "sql": "VARCHAR(length or 320)", "control": "EMAIL_INPUT" },
+    "INTEGER": { "sql": "INTEGER", "control": "INTEGER_INPUT" },
+    "DECIMAL_19_2": { "sql": "DECIMAL(19,2)", "control": "DECIMAL_INPUT" },
+    "BOOLEAN": { "sql": "BOOLEAN", "control": "CHECKBOX" },
+    "DATE": { "sql": "DATE", "control": "DATE_INPUT" },
+    "DATETIME": { "sql": "TIMESTAMP", "control": "DATETIME_LOCAL_INPUT" },
+    "ENUM": { "sql": "VARCHAR(64) plus CHECK constraint", "control": "SELECT" },
+    "REFERENCE": { "sql": "Same compatible SQL type as referenced key", "control": "FOREIGN_KEY_SELECT" }
+  },
+  "automaticSchemaProvisioning": {
+    "mandatoryNoteToImplementer": "WHEN A BUSINESS IS CREATED OR ACTIVATED FROM A CONFIGURATION, AUTOMATICALLY GENERATE AND PROVISION ITS DATABASE SCHEMA IF THAT SCHEMA IS NOT ALREADY PRESENT.",
+    "activationSequence": [
+      "Load external configuration.",
+      "Parse and validate the complete configuration before writing to the database.",
+      "Resolve tables, fields, primary keys, unique constraints, and foreign-key relationships.",
+      "Build a canonical desired SchemaPlan.",
+      "Calculate the deterministic SHA-256 schema fingerprint using the canonicalization contract.",
+      "Inspect the schema registry and database metadata.",
+      "If the business schema is absent, create tables in dependency order and add constraints transactionally.",
+      "If the schema exists and its fingerprint matches, reuse it without destructive changes.",
+      "If the schema exists but differs, reject activation in V1 and report that an explicit migration is required.",
+      "Record the successfully installed schema version and fingerprint.",
+      "Only after successful provisioning, expose the business menus and CRUD routes."
+    ],
+    "transactionRule": "Schema creation must be all-or-nothing where supported. A failed provision must not be recorded as installed.",
+    "dependencyRule": "Create referenced parent tables before dependent child tables. For cycles, create tables first and add foreign keys afterward.",
+    "destructiveMigrationRule": "Never drop or rename tables or columns and never change types automatically in V1.",
+    "registryTable": {
+      "name": "DI_SCHEMA_REGISTRY",
+      "columns": [
+        "configuration_id",
+        "business_id",
+        "schema_version",
+        "schema_fingerprint",
+        "provisioning_status",
+        "installed_at",
+        "last_validated_at"
+      ]
+    }
+  },
+  "schemaFingerprintCanonicalization": {
+    "canonicalProjectionShape": {
+      "businessId": "<business.businessId>",
+      "schemaVersion": "<business.schemaVersion>",
+      "tables": [
+        {
+          "tableId": "<table.tableId>",
+          "fields": [
+            {
+              "blankPolicy": "<field.blankPolicy or null>",
+              "defaultValue": "<field.defaultValue or null>",
+              "editable": "<field.editable; default true>",
+              "fieldId": "<field.fieldId>",
+              "length": "<field.length or null>",
+              "onDelete": "<field.references.onDelete or null>",
+              "primaryKey": "<field.primaryKey; default false>",
+              "referenceFieldId": "<field.references.fieldId or null>",
+              "referenceTableId": "<field.references.tableId or null>",
+              "required": "<field.required; default false>",
+              "ruleWritable": "<field.ruleWritable; default false>",
+              "type": "<field.type>",
+              "unique": "<field.unique; default false>",
+              "uniqueComparison": "<field.uniqueComparison or null>"
+            }
+          ]
+        }
+      ]
+    },
+    "includedProperties": [
+      "business.businessId",
+      "business.schemaVersion",
+      "table.tableId",
+      "field.fieldId",
+      "field.type",
+      "field.length",
+      "field.primaryKey",
+      "field.required",
+      "field.unique",
+      "field.blankPolicy",
+      "field.uniqueComparison",
+      "field.defaultValue",
+      "field.editable",
+      "field.ruleWritable",
+      "field.references.tableId",
+      "field.references.fieldId",
+      "field.references.onDelete"
+    ],
+    "excludedPresentationProperties": [
+      "business.businessName",
+      "business.locale",
+      "table.menuLabel",
+      "table.menuOrder",
+      "table.singularLabel",
+      "table.displayField",
+      "field.label"
+    ],
+    "normalization": [
+      "Sort tables lexicographically by tableId.",
+      "Sort fields within each table lexicographically by fieldId.",
+      "Sort every JSON object key lexicographically.",
+      "Use the defaults shown in canonicalProjectionShape: editable defaults true; primaryKey, required, unique, and ruleWritable default false; nullable scalar and reference properties default null.",
+      "Serialize standard JSON as UTF-8 without comments, insignificant whitespace, or trailing newline.",
+      "Render booleans as lowercase true or false and integral numbers in base-10 without leading zeroes.",
+      "Calculate SHA-256 over the exact UTF-8 bytes and encode as lowercase hexadecimal."
+    ],
+    "reason": "Presentation-only changes must not require a database migration; structural changes must change the fingerprint."
+  },
+  "databaseNaming": {
+    "businessSchema": "Sanitized uppercase businessId prefixed with APP_",
+    "tableName": "Sanitized uppercase tableId",
+    "columnName": "Sanitized uppercase fieldId",
+    "constraintNames": "Deterministic names derived from businessId, tableId, fieldId, and constraint kind.",
+    "safety": "Reject identifiers that collide after sanitization, use SQL identifier quoting consistently, and never concatenate unvalidated request values into SQL."
+  },
+  "genericCrudContract": {
+    "operations": ["CREATE", "LIST", "VIEW", "UPDATE", "DELETE"],
+    "recordRepresentation": "Map<String,Object> or an equivalent GenericRecord; do not generate or require domain-specific Java entity classes.",
+    "create": "Generate an IDENTITY value, normalize user input, apply declared defaults, validate user-writable inputs and references, execute BEFORE_CREATE rules, validate the complete resulting record including required calculated outputs, then insert with a prepared statement.",
+    "list": "Select configured fields, sort by displayField by default, and render a schema-derived table.",
+    "view": "Render all configured fields and resolve reference display labels.",
+    "update": "Do not permit changes to generated identity fields; validate all submitted values and references.",
+    "delete": "Allow the database foreign-key policy to enforce integrity and translate violations into a readable user message.",
+    "moneyRule": "Use BigDecimal for DECIMAL_19_2; never round-trip through double.",
+    "integerRule": "Accept JSON numeric values and HTTP string values and normalize both to Integer with range validation.",
+    "unknownInputRule": "Reject fields not declared by the active configuration."
+  },
+  "nullableUniqueContract": {
+    "inputNormalization": "Trim STRING and EMAIL inputs. Convert an empty optional value to SQL NULL before validation and persistence.",
+    "uniqueness": "Permit multiple NULL values for an optional unique field; reject duplicate non-null normalized values.",
+    "emailCasePolicy": "Compare non-null email uniqueness case-insensitively using a deterministic normalized lowercase value.",
+    "databaseEnforcement": "Use a database constraint or normalized auxiliary column that matches this behavior; server and database behavior must agree."
+  },
+  "auditContract": {
+    "scope": "GENERIC_MUTATIONS_AND_RULE_ACTIVATION",
+    "storageTable": "DI_RUNTIME_AUDIT",
+    "events": [
+      "SCHEMA_PROVISIONED",
+      "RECORD_CREATED",
+      "RECORD_UPDATED",
+      "RECORD_DELETED",
+      "RULE_SET_ACTIVATED",
+      "RULE_SET_REJECTED",
+      "RULE_EVALUATED"
+    ],
+    "fields": [
+      "event_id",
+      "occurred_at_utc",
+      "business_id",
+      "schema_version",
+      "event_type",
+      "table_id",
+      "record_id",
+      "rule_set_id",
+      "rule_set_version",
+      "rule_id",
+      "transaction_id",
+      "correlation_id",
+      "causation_event_id",
+      "origin",
+      "outcome",
+      "details_json"
+    ],
+    "ordinaryReadsAudited": false,
+    "failurePolicy": "A required mutation audit write participates in the mutation transaction; rejected rule candidates are audited without replacing the active rule set."
+  },
+  "cascadingMutationAuditPolicy": {
+    "principle": "Every persisted record change receives its own CRUD audit event regardless of whether a user or a rule caused it. Every invoked rule receives its own RULE_EVALUATED event.",
+    "originValues": ["USER", "RULE", "SYSTEM"],
+    "ruleOutcomeValues": ["CHANGED", "NO_CHANGE", "REJECTED"],
+    "lineage": {
+      "transactionId": "Shared by the originating mutation, all synchronous rule-driven writes, and their audit events.",
+      "correlationId": "Shared by the complete user or administrative request and retained across all resulting audit events.",
+      "causationEventId": "Points to the immediate audit event or rule evaluation that caused this event; null only for the root event."
+    },
+    "recordMutationRules": [
+      "A user CRUD mutation that changes one record writes one RECORD_CREATED, RECORD_UPDATED, or RECORD_DELETED row with origin USER.",
+      "A rule-driven write that changes a different persisted record writes its own RECORD_UPDATED row with origin RULE and the causing ruleId.",
+      "Multiple calculated fields changed on the same record during one stabilized propagation cycle are coalesced into one physical UPDATE and one RECORD_UPDATED audit row.",
+      "Reparenting may therefore write one user-origin RECORD_UPDATED for the child and one rule-origin RECORD_UPDATED for each distinct affected parent.",
+      "If a rule result equals the current canonical value, perform no database update and write no RECORD_UPDATED event."
+    ],
+    "ruleEvaluationRules": [
+      "Write exactly one RULE_EVALUATED row for every tuple of ruleId and targetRecordId actually evaluated.",
+      "Set outcome CHANGED when the rule contributes a changed canonical output and NO_CHANGE when its result already equals the stored or pending value.",
+      "RULE_EVALUATED never substitutes for the CRUD audit event of a persisted change."
+    ],
+    "transactionBoundary": "All successful record mutations, synchronous rule evaluations, rule-driven record writes, and their audit rows commit or roll back atomically with the originating CRUD transaction.",
+    "rejectedCandidateException": "RULE_SET_REJECTED is written in a separate administrative transaction so rejection remains observable while the previously active RuleSetSnapshot is preserved."
+  },
+  "auditAcceptanceTests": {
+    "requiredEvents": [
+      "SCHEMA_PROVISIONED",
+      "RECORD_CREATED",
+      "RULE_SET_ACTIVATED",
+      "RULE_EVALUATED",
+      "RECORD_DELETED"
+    ],
+    "assertForEveryEvent": [
+      "The exact event counts and rule-evaluation counts declared by an acceptance example match the persisted audit rows.",
+      "event_type matches the operation.",
+      "business_id and schema_version match the active schema.",
+      "occurred_at_utc is a valid UTC instant.",
+      "table_id and record_id are populated for record-scoped events and null only when not applicable.",
+      "rule_set_id and rule_set_version are populated for rule-scoped events and null only when not applicable.",
+      "details_json is valid JSON and contains the relevant operation result without storing secrets."
+    ],
+    "transactionAssertions": [
+      "A rolled-back record mutation leaves no successful mutation audit row.",
+      "A rejected candidate rule set writes RULE_SET_REJECTED but does not write RULE_SET_ACTIVATED.",
+      "A successful candidate writes RULE_SET_ACTIVATED only after all acceptance examples pass."
+    ],
+    "cascadeAssertions": [
+      "A same-parent Invoice Line edit writes one user-origin RECORD_UPDATED for the line, one rule-origin RECORD_UPDATED for the Invoice, and one RULE_EVALUATED per invoked calculation rule.",
+      "Deleting an Invoice Line writes one user-origin RECORD_DELETED for the line, one rule-origin RECORD_UPDATED for its former Invoice, and one RULE_EVALUATED per invoked parent calculation rule.",
+      "Reparenting writes one user-origin RECORD_UPDATED for the child and one rule-origin RECORD_UPDATED for each distinct former and new parent.",
+      "All audit rows from one successful cascade share the originating transactionId and correlationId and have valid causation lineage."
+    ]
+  },
+  "dynamicRuleContract": {
+    "boundary": "The runtime consumes an already-declared external rule set. How an external intelligence creates or evolves rules is outside this construction contract.",
+    "binding": "Resolve every target table, field, relationship, input, and output against the introspected active schema before activation.",
+    "schemaCompatibility": "The rule file must carry configurationId, schemaVersion, and expectedSchemaFingerprint. All three must match the active resolved schema before rule validation continues.",
+    "supportedTriggers": [
+      "BEFORE_CREATE",
+      "BEFORE_UPDATE",
+      "AFTER_CREATE",
+      "AFTER_UPDATE",
+      "AFTER_DELETE"
+    ],
+    "supportedOperators": [
+      "ADD",
+      "SUBTRACT",
+      "MULTIPLY",
+      "DIVIDE",
+      "SUM_RELATED"
+    ],
+    "numericSemantics": "All decimal calculations use BigDecimal. Every rule declares scale and rounding mode. Division by zero rejects evaluation.",
+    "writeBoundary": "A rule may write only a field declared ruleWritable=true. User input may not write fields declared editable=false.",
+    "ordering": "Build a dependency graph from declared reads and writes and evaluate in topological order.",
+    "propagation": "After a record mutation, enqueue dependent rules. Continue evaluating affected rules until no declared output changes or maxPasses is reached.",
+    "cyclePolicy": "Reject a rule set containing an undeclared dependency cycle. Do not attempt arbitrary fixed-point evaluation.",
+    "candidateActivation": [
+      "Read the candidate rule file from the configured external path.",
+      "Validate format, business binding, schema fingerprint, targets, types, operators, triggers, dependency graph, and write permissions.",
+      "Run declared rule acceptance examples in an isolated evaluation context.",
+      "If every check passes, atomically replace the immutable active RuleSetSnapshot.",
+      "If any check fails, keep the last valid RuleSetSnapshot active and return a detailed report."
+    ],
+    "runtimeReload": "POST /administration/rules/reload reloads the configured rule file without restarting the process. Bind the demo to loopback by default and state clearly that this is not production authentication.",
+    "existingRecordPolicy": "Activating a new rule set does not rewrite historical records automatically. It applies on the next relevant mutation unless an explicit recalculation operation is added in a later experiment.",
+    "deletePropagation": "Capture the validated pre-delete record so AFTER_DELETE relationship rules can resolve the former parent reference before the child record disappears.",
+    "introspection": "Expose active rule-set identity, version, bindings, dependency order, and last activation result without exposing implementation internals."
+  },
+  "crossTableEventPropagation": {
+    "purpose": "Allow a mutation on an event table to invoke a rule that writes one or more related records on a different target table.",
+    "requiredRuleProperty": "triggerBinding",
+    "triggerBindingShape": {
+      "eventTable": "Stable configured tableId on which the mutation occurs.",
+      "events": ["AFTER_CREATE", "AFTER_UPDATE", "AFTER_DELETE"],
+      "affectedRecords": {
+        "strategy": "RELATED_PARENT",
+        "referenceField": "REFERENCE field on eventTable",
+        "targetTable": "Referenced parent table and rule targetTable",
+        "targetKeyField": "Referenced parent key field"
+      }
+    },
+    "eventContext": {
+      "eventType": "Mutation event name",
+      "eventTable": "Mutated tableId",
+      "recordBefore": "Immutable typed pre-mutation record or null for CREATE",
+      "recordAfter": "Immutable typed post-mutation record or null for DELETE"
+    },
+    "affectedRecordResolution": {
+      "AFTER_CREATE": "Resolve the parent key from recordAfter.referenceField.",
+      "AFTER_DELETE": "Resolve the former parent key from recordBefore.referenceField.",
+      "AFTER_UPDATE_UNCHANGED_REFERENCE": "Resolve the parent once from either snapshot.",
+      "AFTER_UPDATE_CHANGED_REFERENCE": "Resolve the distinct union of the former parent from recordBefore and the new parent from recordAfter; recalculate both."
+    },
+    "transactionRule": "The originating mutation and all synchronously propagated rule writes succeed or roll back as one database transaction.",
+    "deduplication": "Within one propagation cycle, evaluate each tuple of ruleId, targetTable, targetRecordId at most once unless a declared upstream output changes after its prior evaluation.",
+    "scope": "Every event and target record must belong to the one active business schema."
+  },
+  "ruleAcceptanceExampleProtocol": {
+    "shape": {
+      "name": "Human-readable example name",
+      "fixture": { "records": "Object keyed by tableId; each value is an array of complete or minimally required typed records." },
+      "stimulusMode": "Exactly one of DIRECT_EVENT or FULL_MUTATION_PIPELINE.",
+      "event": "Required only for DIRECT_EVENT: type, table, recordBefore, and recordAfter.",
+      "mutation": "Required only for FULL_MUTATION_PIPELINE: operation CREATE, UPDATE, or DELETE; table; recordId when applicable; and submittedValues for CREATE or UPDATE.",
+      "expect": {
+        "records": "Object keyed by tableId containing record fragments that must match after evaluation.",
+        "absentRecords": "Optional object keyed by tableId containing record IDs that must not exist after evaluation.",
+        "audit": "Optional exact eventCounts, ruleEvaluationCounts, requiredRows, sharedTransaction, sharedCorrelation, and causationLineage assertions."
+      }
+    },
+    "execution": [
+      "Create an isolated in-memory H2 schema from the active schema configuration.",
+      "Load fixture records using typed values and enforce declared keys and relationships.",
+      "For DIRECT_EVENT, dispatch the declared event through the same production rule evaluator used by live mutations.",
+      "For FULL_MUTATION_PIPELINE, submit the declared mutation through the production CRUD service so normalization, BEFORE rules, persistence, AFTER rules, cross-table propagation, audit, and transaction handling all execute.",
+      "Compare expected record fragments using canonical typed equality; DECIMAL_19_2 compares by numeric value and required scale 2.",
+      "Roll back and destroy the isolated test schema after every example."
+    ],
+    "activationGate": "Every acceptance example must pass before the candidate RuleSetSnapshot can replace the active snapshot.",
+    "failureReport": "Return example name, ruleId when known, expected value, actual value, and validation message without modifying live data."
+  },
+  "genericRoutes": {
+    "home": "/",
+    "tableList": "/records/{tableId}",
+    "newForm": "/records/{tableId}/new",
+    "create": "POST /records/{tableId}",
+    "view": "/records/{tableId}/{recordId}",
+    "editForm": "/records/{tableId}/{recordId}/edit",
+    "update": "POST /records/{tableId}/{recordId}",
+    "delete": "POST /records/{tableId}/{recordId}/delete",
+    "health": "/health",
+    "introspection": "/api/blueprint",
+    "ruleIntrospection": "/api/rules",
+    "ruleReload": "POST /administration/rules/reload"
+  },
+  "uiConfigurationContract": {
+    "purpose": "Treat UI behavior as a fourth external construction layer, independently configurable from schema, persistence, and dynamic business rules.",
+    "binding": {
+      "requiredIdentity": ["uiConfigurationId", "businessId", "schemaConfigurationId", "schemaVersion", "expectedSchemaFingerprint"],
+      "activationRule": "All business and schema bindings, including the exact independently computed schema fingerprint, must match before the UI projection is activated.",
+      "authorityBoundary": "The UI file may select layouts, interaction modes, actions, formatting, messages, and visual tokens. It may not add, remove, rename, type, constrain, or persist tables or fields and may not define calculations.",
+      "schemaSafety": "Loading or changing only the UI file never provisions, migrates, drops, or alters database objects and never changes the schema fingerprint."
+    },
+    "composition": {
+      "applicationShell": "Defines header, left navigation, main content, responsiveness, and theme tokens.",
+      "defaults": "Provides presentation and interaction behavior inherited by every schema table.",
+      "perTable": "Optionally deep-overrides defaults for a declared tableId; omitted properties continue to inherit.",
+      "resolutionOrder": ["BUILT_IN_SAFE_FALLBACK", "UI_CONFIGURATION_DEFAULTS", "PER_TABLE_OVERRIDE"],
+      "arrayRule": "Arrays replace inherited arrays rather than concatenate.",
+      "nullRule": "Null is not an implicit deletion instruction; reject null unless the property explicitly permits it."
+    },
+    "allowedVocabulary": {
+      "rowMode": ["INLINE_EDITABLE", "READ_ONLY"],
+      "rowActions": ["VIEW", "EDIT", "SAVE", "DELETE"],
+      "createPlacement": ["INLINE_BELOW_LIST", "SEPARATE_ROUTE"],
+      "successNavigation": ["STAY_ON_LIST", "GO_TO_VIEW"],
+      "blockedDeletePresentation": ["INLINE_BANNER", "SEPARATE_ERROR_PAGE"],
+      "standaloneViewEditRoutes": ["KEEP_AS_FALLBACK", "REMOVE"],
+      "calculatedFieldPresentation": ["READ_ONLY_FORMATTED"],
+      "referenceFieldPresentation": ["FOREIGN_KEY_SELECT"],
+      "identityCreatePresentation": ["HIDDEN"],
+      "validationPresentation": ["INLINE_FIELD_MESSAGES"],
+      "feedbackPresentation": ["INLINE_BANNER"]
+    },
+    "semanticRules": [
+      "Every perTable.tableId must resolve to exactly one active schema table and occur at most once.",
+      "INLINE_EDITABLE rows must declare SAVE and may declare DELETE; READ_ONLY rows must not declare SAVE and use VIEW or EDIT for mutation navigation.",
+      "REMOVE is invalid when any enabled action or separate-create behavior requires a standalone view or edit route.",
+      "INLINE_BELOW_LIST plus STAY_ON_LIST means create is submitted from the list page and the successful response renders that same list with the new row.",
+      "STAY_ON_LIST after SAVE means the successful response renders the same list and preserves a stable scroll target for the saved row.",
+      "An editable schema field is rendered as an input derived from fieldTypeControlMap; UI configuration cannot make a non-editable field writable.",
+      "IDENTITY fields are hidden during create and read-only elsewhere.",
+      "Fields with editable=false and ruleWritable=true are calculated outputs: render formatted values, never user inputs.",
+      "REFERENCE fields always render a same-schema foreign-key selector using the target table displayField; never accept an unvalidated free-text key.",
+      "A RESTRICT delete failure returns to the current list and displays the configured inline error banner without discarding other visible records.",
+      "All forms preserve submitted values and show field-specific validation messages on failure.",
+      "Navigation is derived only from schema tables in menuOrder; the UI file may style or place it but may not invent business menu entries."
+    ],
+    "activationSequence": [
+      "Load and fully validate the schema without mutating the database.",
+      "Compute the schema fingerprint from the canonical structural projection.",
+      "Load and parse the external UI configuration.",
+      "Validate identity bindings, vocabulary, table references, inheritance, contradictions, and authority boundaries.",
+      "Resolve an immutable UiProjectionSnapshot.",
+      "Provision or validate the schema through the schema lifecycle, independently of UI activation.",
+      "Expose routes and render only after both schema and UI snapshots are valid."
+    ],
+    "restartBehavior": "V1.5 loads the UI snapshot at process startup. A UI-file change requires restart but never recompilation or database migration.",
+    "introspection": "The Blueprint endpoint exposes the resolved UI snapshot, its source properties, inherited versus overridden values, binding status, and validation result."
+  },
+  "uiContract": {
+    "authority": "Render the resolved external UiProjectionSnapshot; do not hardcode one list/form interaction pattern in Java.",
+    "layout": "Render the configured top header, left navigation, main content, responsive behavior, and theme tokens.",
+    "leftNavigation": "Render one menu item per configured table in menuOrder; use menuLabel; never hardcode menu entries.",
+    "tableList": "Support both configured INLINE_EDITABLE and READ_ONLY row modes with exactly the compatible configured actions.",
+    "forms": "Derive controls from schema field types and UI presentation policy. Support the configured inline-below-list or separate-route create surface.",
+    "referencePicker": "Query the configured referenced table and show option value=target key, label=target displayField.",
+    "emptyState": "Provide an Add Record action for an empty table.",
+    "calculatedValues": "Format calculated DECIMAL values at their declared scale and never render them as user-editable inputs.",
+    "errorState": "Preserve submitted values, show field-specific validation messages, and use the configured failure presentation.",
+    "visualQuality": "Produce a clean, polished, readable application suitable for visual inspection; do not deliver raw diagnostic HTML."
+  },
+  "introspectionContract": {
+    "output": "Return the resolved runtime Blueprint as JSON.",
+    "mustInclude": [
+      "business identity",
+      "schema version and fingerprint",
+      "table definitions",
+      "field definitions",
+      "resolved relationships",
+      "derived menu entries",
+      "derived controls",
+      "resolved UI configuration with inheritance provenance",
+      "schema provisioning status"
+    ],
+    "provenance": "For every derived item, identify its source configuration table and field."
+  },
+  "prohibitedImplementation": [
+    "Do not hardcode the sample business name, table names, field names, menus, or relationships in Java, templates, SQL files, or JavaScript.",
+    "Do not generate one Java class per configured table.",
+    "Do not implement domain selection using business-name or table-name if/else or switch statements.",
+    "Do not treat the configuration as a prompt that is discarded after code generation; the running application must read it.",
+    "Do not silently invent tables, fields, relationships, calculations, workflows, authentication, or business rules.",
+    "Do not claim dynamic configuration if changing the configuration requires recompiling the JAR.",
+    "Do not embed UI choices into the schema configuration or use a UI-only change to trigger database provisioning or migration.",
+    "Do not render editable controls for identity or calculated rule-writable fields.",
+    "Do not claim schema compatibility solely from a version string; verify the structural fingerprint."
+  ],
+  "requiredTests": [
+    "Valid configuration loads and resolves.",
+    "Malformed and semantically invalid configurations are rejected before database mutation.",
+    "A missing business schema is created automatically.",
+    "Restarting with the unchanged configuration reuses the installed schema and preserves records.",
+    "Each configured table produces exactly one left-navigation entry.",
+    "The external UI configuration binds to the exact active schema fingerprint and invalid bindings fail before the business UI starts.",
+    "Every table inherits inline-editable rows, SAVE and DELETE actions, an inline-below-list create form, and stay-on-list success behavior from the sample UI defaults.",
+    "Standalone view and edit routes remain available as fallbacks when KEEP_AS_FALLBACK is configured.",
+    "Calculated fields render as read-only formatted values and cannot be submitted by users.",
+    "REFERENCE fields render foreign-key selectors in inline row and create forms.",
+    "A RESTRICT delete failure renders an inline banner on the same list.",
+    "An invalid UI contradiction or unknown table override is rejected with a useful validation report.",
+    "Changing only presentation tokens leaves the schema fingerprint, schema registry, and database objects unchanged.",
+    "All five CRUD operations work through generic routes.",
+    "Required, email, integer, decimal, date, enum, and reference validation work.",
+    "Foreign-key pickers use the referenced table displayField.",
+    "Deleting a referenced parent is rejected under RESTRICT.",
+    "A changed structural fingerprint is rejected as migration-required without modifying the installed schema.",
+    "Unknown table and field identifiers are rejected.",
+    "SQL uses prepared statements for record values.",
+    "The introspection endpoint matches the active resolved configuration.",
+    "A source scan finds no sample business, table, or field identifiers in Java source."
+    ,"Tests construct at least one malformed JSON file and one semantically invalid temporary configuration programmatically; both are rejected before any schema mutation."
+    ,"A valid rule set binds only to declared schema fields and activates atomically."
+    ,"An invalid candidate rule set is rejected while the last valid rule set remains active."
+    ,"Changing only the external rule file and invoking the reload route changes subsequent calculations without changing or restarting the JAR."
+  ],
+  "experimentAcceptance": {
+    "phaseOne": [
+      "Build and run the generic application with the separately supplied sample configuration.",
+      "Verify all schema-defined menus, forms, fields, and foreign-key selectors visually and by HTTP tests.",
+      "Verify the external UI configuration produces inline row editing, inline creation, same-list success responses, fallback routes, and inline delete errors.",
+      "Verify automatic schema provisioning and restart persistence."
+    ],
+    "phaseTwo": [
+      "Replace only the external configuration with another compatible business configuration.",
+      "Restart the same compiled JAR without recompilation.",
+      "Verify the new schema and UI are produced from the new configuration.",
+      "Verify the JAR SHA-256 is unchanged."
+    ],
+    "deliveryGate": "Do not report success until the project compiles, the server starts, schema provisioning is observed against a clean data directory, CRUD and foreign-key behavior are exercised through live HTTP requests, restart persistence is verified, and all tests pass."
+  },
+  "semanticValidation": {
+    "status": "PASS",
+    "domainSpecificDefinitions": 0,
+    "configurationRequiredAtRuntime": true,
+    "rulesRequiredAtRuntime": true,
+    "uiConfigurationRequiredAtRuntime": true,
+    "automaticSchemaProvisioningExplicit": true,
+    "externalConfigurationSingleSource": true,
+    "hardcodedBusinessDispatchProhibited": true,
+    "destructiveAutomaticMigrationProhibited": true,
+    "singleBusinessScopeIntentional": true,
+    "fingerprintCanonicalizationComplete": true,
+    "nullableUniqueBehaviorExplicit": true,
+    "auditContractExplicit": true,
+    "dynamicRuleActivationExplicit": true
+    ,"crossTableEventPropagationExplicit": true
+    ,"reparentingRecalculatesOldAndNewParents": true
+    ,"ruleAcceptanceProtocolExplicit": true
+    ,"auditAcceptanceTestsExplicit": true
+    ,"fullMutationPipelineExamplesSupported": true
+    ,"cascadingMutationAuditPolicyExplicit": true
+    ,"fourthUiLayerExternalized": true
+    ,"uiSchemaAuthoritySeparated": true
+    ,"uiOnlyChangesCannotMutateSchema": true
+    ,"calculatedFieldsReadOnlyInUi": true
+  }
+}
