@@ -104,7 +104,7 @@ report to stderr and exits without starting a partial UI.
 ### Reloading rules without restarting
 
 ```
-curl -X POST http://127.0.0.1:8080/administration/rules/reload
+curl -X POST http://127.0.0.1:8091/administration/rules/reload
 ```
 
 Edit `business-rules.jsonc` on disk, then POST to this route (bound to loopback by
