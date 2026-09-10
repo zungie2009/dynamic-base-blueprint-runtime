@@ -1,0 +1,162 @@
+{
+  "format": "BUSINESS_UI_CONFIGURATION_V1",
+  "uiConfigurationId": "CONSULTING_UI_DEMO_V1",
+  "binding": {
+    "businessId": "CONSULTING_DEMO",
+    "schemaConfigurationId": "CONSULTING_SCHEMA_DEMO_V1_1",
+    "schemaVersion": "1",
+    "expectedSchemaFingerprint": "1d4a004c82e570e13173079f90bb23401118438f6ecd9677714a6a75a7ad4efc"
+  },
+  "applicationShell": {
+    "layout": "TOP_HEADER_LEFT_SIDEBAR_MAIN_CONTENT",
+    "header": {
+      "visible": true,
+      "titleSource": "SCHEMA_BUSINESS_NAME",
+      "subtitle": "Business workspace"
+    },
+    "leftNavigation": {
+      "visible": true,
+      "source": "SCHEMA_TABLES",
+      "sortBy": "menuOrder",
+      "labelSource": "menuLabel",
+      "activeItemIndicator": "ACCENT_BAR_AND_TINT",
+      "position": "STICKY"
+    },
+    "mainContent": {
+      "width": "FLUID",
+      "maxWidthPx": 1600,
+      "paddingPx": 28
+    },
+    "responsive": {
+      "sidebarBehaviorBelowPx": 900,
+      "behavior": "COLLAPSIBLE_DRAWER",
+      "tableOverflow": "HORIZONTAL_SCROLL",
+      "formColumns": "RESPONSIVE"
+    }
+  },
+  "theme": {
+    "name": "Professional Blue",
+    "fontFamily": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    "tokens": {
+      "pageBackground": "#F4F7FB",
+      "surface": "#FFFFFF",
+      "surfaceMuted": "#F8FAFC",
+      "textPrimary": "#172033",
+      "textSecondary": "#5E6B82",
+      "border": "#DCE3EE",
+      "primary": "#2457D6",
+      "primaryHover": "#1846B8",
+      "primarySoft": "#EAF0FF",
+      "danger": "#B42318",
+      "dangerSoft": "#FEECEB",
+      "success": "#067647",
+      "successSoft": "#ECFDF3",
+      "focusRing": "#84ADFF",
+      "borderRadiusPx": 10,
+      "cardShadow": "0 8px 24px rgba(23,32,51,0.08)"
+    }
+  },
+  "defaults": {
+    "listSurface": {
+      "container": "CARD",
+      "rowMode": "INLINE_EDITABLE",
+      "rowActions": ["SAVE", "DELETE"],
+      "actionPlacement": "RIGHTMOST_COLUMN",
+      "onSaveSuccess": "STAY_ON_LIST",
+      "savedRowAnchor": true,
+      "emptyStateAction": "FOCUS_INLINE_CREATE_FORM"
+    },
+    "createSurface": {
+      "placement": "INLINE_BELOW_LIST",
+      "container": "CARD",
+      "titlePattern": "Add {singularLabel}",
+      "submitLabelPattern": "Add {singularLabel}",
+      "onSuccess": "STAY_ON_LIST",
+      "resetAfterSuccess": true
+    },
+    "standaloneViewEditRoutes": "KEEP_AS_FALLBACK",
+    "fieldPresentation": {
+      "editableFields": "CONTROL_FROM_FIELD_TYPE_MAP",
+      "identityOnCreate": "HIDDEN",
+      "identityElsewhere": "READ_ONLY_TEXT",
+      "calculatedFields": "READ_ONLY_FORMATTED",
+      "referenceFields": "FOREIGN_KEY_SELECT",
+      "referenceOptionValue": "TARGET_KEY",
+      "referenceOptionLabel": "TARGET_DISPLAY_FIELD",
+      "decimalScale": 2,
+      "dateFormat": "LOCALE_AWARE"
+    },
+    "validation": {
+      "presentation": "INLINE_FIELD_MESSAGES",
+      "preserveSubmittedValues": true,
+      "focusFirstInvalidField": true
+    },
+    "feedback": {
+      "success": "INLINE_BANNER",
+      "blockedDelete": "INLINE_BANNER",
+      "blockedDeleteTone": "DANGER",
+      "blockedDeleteMessage": "This record cannot be deleted because another record still references it.",
+      "dismissible": true
+    }
+  },
+  "perTable": [],
+  "interactionContract": {
+    "listPageIsPrimaryWorkspace": true,
+    "inlineEdit": "Every existing row renders writable schema fields as controls and calculated or identity fields as read-only values.",
+    "save": "SAVE submits only that row to POST /records/{tableId}/{recordId}; success returns the same list page.",
+    "delete": "DELETE submits to POST /records/{tableId}/{recordId}/delete; success returns the same list page and a RESTRICT failure returns the same page with the inline danger banner.",
+    "create": "The create form is rendered after the list and submits to POST /records/{tableId}; success returns the same list page with the new row visible.",
+    "references": "Foreign-key inputs load options from the referenced table in the active schema and display its displayField.",
+    "calculatedFields": "Fields declared editable=false and ruleWritable=true are never accepted as user input and update only through the active rules engine.",
+    "fallback": "Standalone view, new, and edit routes remain functional for direct navigation and accessibility, but list actions do not navigate to them by default."
+  },
+  "authorityAndLifecycle": {
+    "owns": ["layout", "interaction modes", "action placement", "formatting", "feedback presentation", "theme tokens"],
+    "doesNotOwn": ["database tables", "database columns", "field types", "constraints", "relationships", "calculations", "rule triggers"],
+    "reload": "RESTART_REQUIRED_FOR_V1",
+    "compileRequiredAfterChange": false,
+    "databaseMigrationAfterChange": false,
+    "schemaFingerprintAffectedByChange": false
+  },
+  "acceptanceScenarios": [
+    {
+      "name": "Menus come only from schema",
+      "expect": "Exactly Clients, Engagements, Invoices, and Invoice Lines appear in schema menuOrder."
+    },
+    {
+      "name": "Existing rows edit inline",
+      "expect": "Each row exposes editable controls plus SAVE and DELETE without navigating away."
+    },
+    {
+      "name": "New records are created inline",
+      "expect": "The create form appears below the list and successful creation stays on the same list."
+    },
+    {
+      "name": "Calculated invoice values are protected",
+      "expect": "subtotal, tax, total, and lineAmount are formatted read-only values and are absent from writable request inputs."
+    },
+    {
+      "name": "Relationships use pickers",
+      "expect": "clientId, engagementId, and invoiceId render validated foreign-key selectors with readable display labels."
+    },
+    {
+      "name": "Restricted delete remains contextual",
+      "expect": "Deleting a referenced parent stays on the list and displays the configured inline red banner."
+    },
+    {
+      "name": "Presentation changes are schema-neutral",
+      "expect": "Changing a color or spacing token and restarting changes presentation without changing the computed schema fingerprint or database objects."
+    }
+  ],
+  "semanticValidation": {
+    "status": "PASS",
+    "bindingFingerprintMatchesSchema": true,
+    "referencedTableOverrides": 0,
+    "unknownTableOverrides": 0,
+    "contradictoryInteractionOptions": 0,
+    "businessMenuEntriesInvented": 0,
+    "calculatedFieldsWritable": 0,
+    "schemaMutationInstructions": 0,
+    "defaultsApplyToAllConfiguredTables": true
+  }
+}

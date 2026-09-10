@@ -1,0 +1,243 @@
+{
+  "format": "BUSINESS_SCHEMA_CONFIGURATION_V1_1",
+  "configurationId": "CONSULTING_SCHEMA_DEMO_V1_1",
+  "business": {
+    "businessId": "CONSULTING_DEMO",
+    "businessName": "Consulting Company",
+    "schemaVersion": "1",
+    "locale": "en-US"
+  },
+  "tables": [
+    {
+      "tableId": "clients",
+      "menuLabel": "Clients",
+      "menuOrder": 10,
+      "singularLabel": "Client",
+      "displayField": "name",
+      "fields": [
+        {
+          "fieldId": "id",
+          "label": "ID",
+          "type": "IDENTITY",
+          "primaryKey": true,
+          "required": true,
+          "editable": false
+        },
+        {
+          "fieldId": "name",
+          "label": "Name",
+          "type": "STRING",
+          "length": 200,
+          "required": true
+        },
+        {
+          "fieldId": "email",
+          "label": "Email",
+          "type": "EMAIL",
+          "required": false,
+          "unique": true,
+          "blankPolicy": "NORMALIZE_TO_NULL",
+          "uniqueComparison": "CASE_INSENSITIVE_FOR_NON_NULL_VALUES"
+        }
+      ]
+    },
+    {
+      "tableId": "engagements",
+      "menuLabel": "Engagements",
+      "menuOrder": 20,
+      "singularLabel": "Engagement",
+      "displayField": "title",
+      "fields": [
+        {
+          "fieldId": "id",
+          "label": "ID",
+          "type": "IDENTITY",
+          "primaryKey": true,
+          "required": true,
+          "editable": false
+        },
+        {
+          "fieldId": "clientId",
+          "label": "Client",
+          "type": "REFERENCE",
+          "required": true,
+          "references": {
+            "tableId": "clients",
+            "fieldId": "id",
+            "onDelete": "RESTRICT"
+          }
+        },
+        {
+          "fieldId": "title",
+          "label": "Title",
+          "type": "STRING",
+          "length": 200,
+          "required": true
+        },
+        {
+          "fieldId": "startDate",
+          "label": "Start Date",
+          "type": "DATE",
+          "required": true
+        }
+      ]
+    },
+    {
+      "tableId": "invoices",
+      "menuLabel": "Invoices",
+      "menuOrder": 30,
+      "singularLabel": "Invoice",
+      "displayField": "invoiceNumber",
+      "fields": [
+        {
+          "fieldId": "id",
+          "label": "ID",
+          "type": "IDENTITY",
+          "primaryKey": true,
+          "required": true,
+          "editable": false
+        },
+        {
+          "fieldId": "engagementId",
+          "label": "Engagement",
+          "type": "REFERENCE",
+          "required": true,
+          "references": {
+            "tableId": "engagements",
+            "fieldId": "id",
+            "onDelete": "RESTRICT"
+          }
+        },
+        {
+          "fieldId": "invoiceNumber",
+          "label": "Invoice Number",
+          "type": "STRING",
+          "length": 40,
+          "required": true,
+          "unique": true
+        },
+        {
+          "fieldId": "invoiceDate",
+          "label": "Invoice Date",
+          "type": "DATE",
+          "required": true
+        },
+        {
+          "fieldId": "subtotal",
+          "label": "Subtotal",
+          "type": "DECIMAL_19_2",
+          "required": true,
+          "defaultValue": "0.00",
+          "editable": false,
+          "ruleWritable": true
+        },
+        {
+          "fieldId": "tax",
+          "label": "Tax",
+          "type": "DECIMAL_19_2",
+          "required": true,
+          "defaultValue": "0.00",
+          "editable": false,
+          "ruleWritable": true
+        },
+        {
+          "fieldId": "total",
+          "label": "Total",
+          "type": "DECIMAL_19_2",
+          "required": true,
+          "defaultValue": "0.00",
+          "editable": false,
+          "ruleWritable": true
+        }
+      ]
+    },
+    {
+      "tableId": "invoiceLines",
+      "menuLabel": "Invoice Lines",
+      "menuOrder": 40,
+      "singularLabel": "Invoice Line",
+      "displayField": "description",
+      "fields": [
+        {
+          "fieldId": "id",
+          "label": "ID",
+          "type": "IDENTITY",
+          "primaryKey": true,
+          "required": true,
+          "editable": false
+        },
+        {
+          "fieldId": "invoiceId",
+          "label": "Invoice",
+          "type": "REFERENCE",
+          "required": true,
+          "references": {
+            "tableId": "invoices",
+            "fieldId": "id",
+            "onDelete": "RESTRICT"
+          }
+        },
+        {
+          "fieldId": "description",
+          "label": "Description",
+          "type": "STRING",
+          "length": 500,
+          "required": true
+        },
+        {
+          "fieldId": "quantity",
+          "label": "Quantity",
+          "type": "DECIMAL_19_2",
+          "required": true
+        },
+        {
+          "fieldId": "unitPrice",
+          "label": "Unit Price",
+          "type": "DECIMAL_19_2",
+          "required": true
+        },
+        {
+          "fieldId": "lineAmount",
+          "label": "Line Amount",
+          "type": "DECIMAL_19_2",
+          "required": true,
+          "editable": false,
+          "ruleWritable": true
+        }
+      ]
+    }
+  ],
+  "semanticValidation": {
+    "status": "PASS",
+    "tableCount": 4,
+    "fieldCount": 20,
+    "primaryKeyCount": 4,
+    "foreignKeyCount": 3,
+    "menuCount": 4,
+    "allTablesHavePrimaryKey": true,
+    "allTablesHaveDisplayField": true,
+    "allReferencesResolve": true,
+    "relationshipGraphAcyclic": true,
+    "domainBusinessRulesDeclared": 0
+  },
+  "experimentBoundary": {
+    "included": [
+      "business identity",
+      "left-navigation menu metadata",
+      "tables",
+      "fields",
+      "primary keys",
+      "foreign keys",
+      "basic column constraints"
+    ],
+    "intentionallyExcluded": [
+      "workflow state machines",
+      "authentication",
+      "authorization roles",
+      "notifications",
+      "external integrations",
+      "seed data"
+    ],
+    "instruction": "Do not infer or add excluded behavior. The separate rule-set file is the sole authority for calculations. Fields marked editable=false and ruleWritable=true are calculated outputs."
+  }
+}

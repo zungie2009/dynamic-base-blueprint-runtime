@@ -1,0 +1,376 @@
+{
+  "format": "BUSINESS_RULE_SET_V1_3",
+  "ruleSet": {
+    "ruleSetId": "CONSULTING_INVOICE_CALCULATIONS",
+    "version": "1",
+    "businessId": "CONSULTING_DEMO",
+    "schemaBinding": {
+      "configurationId": "CONSULTING_SCHEMA_DEMO_V1_1",
+      "schemaVersion": "1",
+      "expectedSchemaFingerprint": "1d4a004c82e570e13173079f90bb23401118438f6ecd9677714a6a75a7ad4efc"
+    },
+    "activation": "VALIDATED_RUNTIME_RELOAD",
+    "maxPasses": 8
+  },
+  "rules": [
+    {
+      "ruleId": "INVOICE_LINE_AMOUNT",
+      "description": "Calculate a line amount from quantity and unit price.",
+      "targetTable": "invoiceLines",
+      "triggers": ["BEFORE_CREATE", "BEFORE_UPDATE"],
+      "reads": [
+        { "table": "invoiceLines", "field": "quantity", "type": "DECIMAL_19_2" },
+        { "table": "invoiceLines", "field": "unitPrice", "type": "DECIMAL_19_2" }
+      ],
+      "writes": [
+        { "table": "invoiceLines", "field": "lineAmount", "type": "DECIMAL_19_2" }
+      ],
+      "expression": {
+        "operator": "MULTIPLY",
+        "arguments": ["invoiceLines.quantity", "invoiceLines.unitPrice"],
+        "scale": 2,
+        "roundingMode": "HALF_UP"
+      }
+    },
+    {
+      "ruleId": "INVOICE_SUBTOTAL",
+      "description": "Sum line amounts belonging to the affected invoice.",
+      "targetTable": "invoices",
+      "triggerBinding": {
+        "eventTable": "invoiceLines",
+        "events": ["AFTER_CREATE", "AFTER_UPDATE", "AFTER_DELETE"],
+        "affectedRecords": {
+          "strategy": "RELATED_PARENT",
+          "referenceField": "invoiceId",
+          "targetTable": "invoices",
+          "targetKeyField": "id"
+        }
+      },
+      "reads": [
+        { "table": "invoiceLines", "field": "invoiceId", "type": "REFERENCE" },
+        { "table": "invoiceLines", "field": "lineAmount", "type": "DECIMAL_19_2" }
+      ],
+      "writes": [
+        { "table": "invoices", "field": "subtotal", "type": "DECIMAL_19_2" }
+      ],
+      "expression": {
+        "operator": "SUM_RELATED",
+        "source": "invoiceLines.lineAmount",
+        "where": "invoiceLines.invoiceId = invoices.id",
+        "emptyResult": "0.00",
+        "scale": 2,
+        "roundingMode": "HALF_UP"
+      }
+    },
+    {
+      "ruleId": "INVOICE_TAX",
+      "description": "Calculate demonstration tax at six percent of subtotal.",
+      "targetTable": "invoices",
+      "triggers": ["AFTER_CREATE", "AFTER_UPDATE"],
+      "dependsOn": ["INVOICE_SUBTOTAL"],
+      "reads": [
+        { "table": "invoices", "field": "subtotal", "type": "DECIMAL_19_2" }
+      ],
+      "writes": [
+        { "table": "invoices", "field": "tax", "type": "DECIMAL_19_2" }
+      ],
+      "expression": {
+        "operator": "MULTIPLY",
+        "arguments": ["invoices.subtotal", { "constant": "0.06", "type": "DECIMAL" }],
+        "scale": 2,
+        "roundingMode": "HALF_UP"
+      }
+    },
+    {
+      "ruleId": "INVOICE_TOTAL",
+      "description": "Add subtotal and tax.",
+      "targetTable": "invoices",
+      "triggers": ["AFTER_CREATE", "AFTER_UPDATE"],
+      "dependsOn": ["INVOICE_SUBTOTAL", "INVOICE_TAX"],
+      "reads": [
+        { "table": "invoices", "field": "subtotal", "type": "DECIMAL_19_2" },
+        { "table": "invoices", "field": "tax", "type": "DECIMAL_19_2" }
+      ],
+      "writes": [
+        { "table": "invoices", "field": "total", "type": "DECIMAL_19_2" }
+      ],
+      "expression": {
+        "operator": "ADD",
+        "arguments": ["invoices.subtotal", "invoices.tax"],
+        "scale": 2,
+        "roundingMode": "HALF_UP"
+      }
+    }
+  ],
+  "acceptanceExamples": [
+    {
+      "name": "Line amount uses decimal arithmetic",
+      "stimulusMode": "DIRECT_EVENT",
+      "fixture": {
+        "records": {
+          "clients": [
+            { "id": "client-test", "name": "Test Client", "email": null }
+          ],
+          "engagements": [
+            { "id": "eng-test", "clientId": "client-test", "title": "Test Engagement", "startDate": "2026-09-09" }
+          ],
+          "invoices": [
+            { "id": "inv-test", "engagementId": "eng-test", "invoiceNumber": "INV-LINE-TEST", "invoiceDate": "2026-09-09", "subtotal": "0.00", "tax": "0.00", "total": "0.00" }
+          ],
+          "invoiceLines": []
+        }
+      },
+      "event": {
+        "type": "BEFORE_CREATE",
+        "table": "invoiceLines",
+        "recordBefore": null,
+        "recordAfter": {
+          "id": "line-test",
+          "invoiceId": "inv-test",
+          "description": "Test line",
+          "quantity": "2.00",
+          "unitPrice": "125.50"
+        }
+      },
+      "expect": {
+        "records": {
+          "invoiceLines": [
+            { "id": "line-test", "lineAmount": "251.00" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Invoice aggregates lines and propagates dependent calculations",
+      "stimulusMode": "DIRECT_EVENT",
+      "fixture": {
+        "records": {
+          "clients": [
+            { "id": "client-test", "name": "Test Client", "email": null }
+          ],
+          "engagements": [
+            { "id": "eng-test", "clientId": "client-test", "title": "Test Engagement", "startDate": "2026-09-09" }
+          ],
+          "invoices": [
+            { "id": "inv-test", "engagementId": "eng-test", "invoiceNumber": "INV-TEST", "invoiceDate": "2026-09-09", "subtotal": "0.00", "tax": "0.00", "total": "0.00" }
+          ],
+          "invoiceLines": [
+            { "id": "line-1", "invoiceId": "inv-test", "description": "First", "quantity": "1.00", "unitPrice": "100.00", "lineAmount": "100.00" },
+            { "id": "line-2", "invoiceId": "inv-test", "description": "Second", "quantity": "1.00", "unitPrice": "50.00", "lineAmount": "50.00" }
+          ]
+        }
+      },
+      "event": {
+        "type": "AFTER_CREATE",
+        "table": "invoiceLines",
+        "recordBefore": null,
+        "recordAfter": { "id": "line-2", "invoiceId": "inv-test" }
+      },
+      "expect": {
+        "records": {
+          "invoices": [
+            { "id": "inv-test", "subtotal": "150.00", "tax": "9.00", "total": "159.00" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Reparenting recalculates both former and new invoices",
+      "stimulusMode": "FULL_MUTATION_PIPELINE",
+      "fixture": {
+        "records": {
+          "clients": [
+            { "id": "client-test", "name": "Test Client", "email": null }
+          ],
+          "engagements": [
+            { "id": "eng-test", "clientId": "client-test", "title": "Test Engagement", "startDate": "2026-09-09" }
+          ],
+          "invoices": [
+            { "id": "inv-old", "engagementId": "eng-test", "invoiceNumber": "INV-OLD", "invoiceDate": "2026-09-09", "subtotal": "100.00", "tax": "6.00", "total": "106.00" },
+            { "id": "inv-new", "engagementId": "eng-test", "invoiceNumber": "INV-NEW", "invoiceDate": "2026-09-09", "subtotal": "0.00", "tax": "0.00", "total": "0.00" }
+          ],
+          "invoiceLines": [
+            { "id": "line-moved", "invoiceId": "inv-old", "description": "Moved", "quantity": "1.00", "unitPrice": "100.00", "lineAmount": "100.00" }
+          ]
+        }
+      },
+      "mutation": {
+        "operation": "UPDATE",
+        "table": "invoiceLines",
+        "recordId": "line-moved",
+        "submittedValues": {
+          "invoiceId": "inv-new",
+          "description": "Moved",
+          "quantity": "1.00",
+          "unitPrice": "100.00"
+        }
+      },
+      "expect": {
+        "records": {
+          "invoices": [
+            { "id": "inv-old", "subtotal": "0.00", "tax": "0.00", "total": "0.00" },
+            { "id": "inv-new", "subtotal": "100.00", "tax": "6.00", "total": "106.00" }
+          ]
+        },
+        "audit": {
+          "eventCounts": { "RECORD_UPDATED": 3, "RULE_EVALUATED": 7 },
+          "ruleEvaluationCounts": {
+            "INVOICE_LINE_AMOUNT": 1,
+            "INVOICE_SUBTOTAL": 2,
+            "INVOICE_TAX": 2,
+            "INVOICE_TOTAL": 2
+          },
+          "requiredRows": [
+            { "eventType": "RECORD_UPDATED", "origin": "USER", "tableId": "invoiceLines", "recordId": "line-moved" },
+            { "eventType": "RECORD_UPDATED", "origin": "RULE", "tableId": "invoices", "recordId": "inv-old" },
+            { "eventType": "RECORD_UPDATED", "origin": "RULE", "tableId": "invoices", "recordId": "inv-new" },
+            { "eventType": "RULE_EVALUATED", "ruleId": "INVOICE_LINE_AMOUNT", "outcome": "NO_CHANGE", "recordId": "line-moved" }
+          ],
+          "sharedTransaction": true,
+          "sharedCorrelation": true,
+          "causationLineage": "VALID"
+        }
+      }
+    },
+    {
+      "name": "Editing quantity recalculates line and unchanged parent chain",
+      "stimulusMode": "FULL_MUTATION_PIPELINE",
+      "fixture": {
+        "records": {
+          "clients": [
+            { "id": "client-edit", "name": "Edit Client", "email": null }
+          ],
+          "engagements": [
+            { "id": "eng-edit", "clientId": "client-edit", "title": "Edit Engagement", "startDate": "2026-09-09" }
+          ],
+          "invoices": [
+            { "id": "inv-edit", "engagementId": "eng-edit", "invoiceNumber": "INV-EDIT", "invoiceDate": "2026-09-09", "subtotal": "100.00", "tax": "6.00", "total": "106.00" }
+          ],
+          "invoiceLines": [
+            { "id": "line-edit", "invoiceId": "inv-edit", "description": "Editable line", "quantity": "2.00", "unitPrice": "50.00", "lineAmount": "100.00" }
+          ]
+        }
+      },
+      "mutation": {
+        "operation": "UPDATE",
+        "table": "invoiceLines",
+        "recordId": "line-edit",
+        "submittedValues": {
+          "invoiceId": "inv-edit",
+          "description": "Editable line",
+          "quantity": "3.00",
+          "unitPrice": "50.00"
+        }
+      },
+      "expect": {
+        "records": {
+          "invoiceLines": [
+            { "id": "line-edit", "quantity": "3.00", "lineAmount": "150.00" }
+          ],
+          "invoices": [
+            { "id": "inv-edit", "subtotal": "150.00", "tax": "9.00", "total": "159.00" }
+          ]
+        },
+        "audit": {
+          "eventCounts": { "RECORD_UPDATED": 2, "RULE_EVALUATED": 4 },
+          "ruleEvaluationCounts": {
+            "INVOICE_LINE_AMOUNT": 1,
+            "INVOICE_SUBTOTAL": 1,
+            "INVOICE_TAX": 1,
+            "INVOICE_TOTAL": 1
+          },
+          "requiredRows": [
+            { "eventType": "RECORD_UPDATED", "origin": "USER", "tableId": "invoiceLines", "recordId": "line-edit" },
+            { "eventType": "RECORD_UPDATED", "origin": "RULE", "tableId": "invoices", "recordId": "inv-edit" }
+          ],
+          "sharedTransaction": true,
+          "sharedCorrelation": true,
+          "causationLineage": "VALID"
+        }
+      }
+    },
+    {
+      "name": "Deleting a line recalculates its former parent",
+      "stimulusMode": "FULL_MUTATION_PIPELINE",
+      "fixture": {
+        "records": {
+          "clients": [
+            { "id": "client-delete", "name": "Delete Client", "email": null }
+          ],
+          "engagements": [
+            { "id": "eng-delete", "clientId": "client-delete", "title": "Delete Engagement", "startDate": "2026-09-09" }
+          ],
+          "invoices": [
+            { "id": "inv-delete", "engagementId": "eng-delete", "invoiceNumber": "INV-DELETE", "invoiceDate": "2026-09-09", "subtotal": "150.00", "tax": "9.00", "total": "159.00" }
+          ],
+          "invoiceLines": [
+            { "id": "line-keep", "invoiceId": "inv-delete", "description": "Keep", "quantity": "1.00", "unitPrice": "100.00", "lineAmount": "100.00" },
+            { "id": "line-delete", "invoiceId": "inv-delete", "description": "Delete", "quantity": "1.00", "unitPrice": "50.00", "lineAmount": "50.00" }
+          ]
+        }
+      },
+      "mutation": {
+        "operation": "DELETE",
+        "table": "invoiceLines",
+        "recordId": "line-delete"
+      },
+      "expect": {
+        "records": {
+          "invoiceLines": [
+            { "id": "line-keep", "lineAmount": "100.00" }
+          ],
+          "invoices": [
+            { "id": "inv-delete", "subtotal": "100.00", "tax": "6.00", "total": "106.00" }
+          ]
+        },
+        "absentRecords": {
+          "invoiceLines": ["line-delete"]
+        },
+        "audit": {
+          "eventCounts": { "RECORD_DELETED": 1, "RECORD_UPDATED": 1, "RULE_EVALUATED": 3 },
+          "ruleEvaluationCounts": {
+            "INVOICE_SUBTOTAL": 1,
+            "INVOICE_TAX": 1,
+            "INVOICE_TOTAL": 1
+          },
+          "requiredRows": [
+            { "eventType": "RECORD_DELETED", "origin": "USER", "tableId": "invoiceLines", "recordId": "line-delete" },
+            { "eventType": "RECORD_UPDATED", "origin": "RULE", "tableId": "invoices", "recordId": "inv-delete" }
+          ],
+          "sharedTransaction": true,
+          "sharedCorrelation": true,
+          "causationLineage": "VALID"
+        }
+      }
+    }
+  ],
+  "activationContract": {
+    "schemaBinding": "Every read and write must resolve against the active introspected schema.",
+    "schemaFingerprintBinding": "configurationId, schemaVersion, and expectedSchemaFingerprint must all match the active schema.",
+    "writeSafety": "Every output must target editable=false and ruleWritable=true.",
+    "dependencyOrder": [
+      "INVOICE_LINE_AMOUNT",
+      "INVOICE_SUBTOTAL",
+      "INVOICE_TAX",
+      "INVOICE_TOTAL"
+    ],
+    "failurePolicy": "Reject the complete candidate rule set and retain the last valid active version.",
+    "historicalRecords": "Do not recalculate existing records merely because this rule set is activated."
+  },
+  "semanticValidation": {
+    "status": "PASS",
+    "ruleCount": 4,
+    "allTablesResolve": true,
+    "allFieldsResolve": true,
+    "allTypesMatchSchema": true,
+    "allWritesTargetRuleWritableFields": true,
+    "dependencyGraphAcyclic": true,
+    "acceptanceExampleCount": 5,
+    "crossTableTriggerBindingExplicit": true,
+    "reparentingExamplePresent": true,
+    "schemaFingerprintPresent": true,
+    "sameParentUpdateExamplePresent": true,
+    "deletePropagationExamplePresent": true
+    ,"cascadeAuditExpectationsPresent": true
+  }
+}
